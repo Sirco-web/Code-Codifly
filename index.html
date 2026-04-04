@@ -76,9 +76,11 @@
         </div>
     </div>
 
-    <!-- Hidden iframe for code execution -->
-    <iframe id="codeFrame" style="display: none;"></iframe>
+    <div style="display:none!important;visibility:hidden!important;position:absolute!important;top:-9999px!important;left:-9999px!important;width:1px!important;height:1px!important;">
+        <iframe id="codeFrame"></iframe>
+    </div>
 
+    <script src="providers.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

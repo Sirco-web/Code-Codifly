@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Example Provider</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #222; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { color: #0f0; margin-bottom: 10px; }
+        .status { color: #8f8; font-size: 14px; }
+        .games-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .game-card { background: #333; border: 2px solid #0f0; border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.3s; }
+        .game-card:hover { background: #444; box-shadow: 0 0 20px #0f0; }
+        .game-name { font-size: 24px; font-weight: bold; color: #0f0; margin-bottom: 10px; }
+        .game-code { color: #888; font-size: 12px; font-family: monospace; margin-bottom: 10px; }
+        .game-desc { color: #ccc; font-size: 14px; margin-bottom: 15px; }
+        .game-btn { background: #0f0; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .game-btn:hover { background: #0a0; }
+        .info-section { background: #333; border-left: 4px solid #0f0; padding: 20px; margin-bottom: 20px; border-radius: 4px; }
+        .info-section h2 { color: #0f0; margin-bottom: 10px; }
+        .info-section p { color: #ccc; margin-bottom: 10px; }
+        code { background: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-family: monospace; color: #8f8; }
+        pre { background: #1a1a1a; padding: 10px; border-radius: 4px; overflow-x: auto; color: #8f8; margin: 10px 0; font-size: 12px; }
+        .metadata { background: #2a2a2a; padding: 15px; border-radius: 4px; margin-top: 20px; }
+        .metadata h3 { color: #0f0; margin-bottom: 10px; }
+        .metadata p { font-size: 12px; color: #aaa; margin: 5px 0; font-family: monospace; }
+        .warning { background: #332211; border-left: 4px solid #ff8800; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        .warning h3 { color: #ffaa00; margin-bottom: 10px; }
+        .warning ul { margin-left: 20px; color: #ccc; }
+        .warning li { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 Example Provider</h1>
+            <p class="status">✓ Provider is active and ready to use</p>
+        </header>
+
+        <div class="info-section">
+            <h2>📋 About This Provider</h2>
+            <p>This is an example provider demonstrating how to create a provider site for Code Compiler. It hosts games and content that can be loaded dynamically.</p>
+            <p><strong>Provider Type:</strong> HTTP Server (Node.js or Python)</p>
+            <p><strong>Status:</strong> ✓ Online and running</p>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ IMPORTANT: Code Format</h3>
+            <p>All codes must be <strong>exactly 4 alphanumeric characters</strong> (letters and/or digits)</p>
+            <ul>
+                <li>✅ Valid: <code>snk1</code>, <code>test</code>, <code>2048</code>, <code>pong</code></li>
+                <li>❌ Invalid: <code>abc</code> (too short), <code>abcde</code> (too long), <code>abc!</code> (special char)</li>
+            </ul>
+        </div>
+
+        <h2 style="color: #0f0; margin-bottom: 20px;">🎮 Available Games (4-Char Codes)</h2>
+        <div class="games-grid" id="gamesGrid"></div>
+
+        <div class="info-section">
+            <h2>🚀 How to Use This Provider</h2>
+            <p><strong>Step 1:</strong> Register this provider in Code Compiler console:</p>
+            <pre>/register-url add games http://localhost:3000/?code=</pre>
+            <p><strong>Step 2:</strong> Load a game using a 4-character code:</p>
+            <pre>/load-code snk1
+/load-code 2048
+/load-code pong</pre>
+            <p><strong>Step 3:</strong> See provider info:</p>
+            <pre>/reg-url list</pre>
+        </div>
+
+        <div class="info-section">
+            <h2>📁 Provider Structure</h2>
+            <pre>example-provider/
+├── codifly.json          # MANDATORY metadata (required!)
+├── index.html            # This page
+├── server.js             # Node.js implementation
+├── server.py             # Python implementation
+└── games/                # (Optional) Game files</pre>
+        </div>
+
+        <div class="info-section">
+            <h2>💡 Starting a Server</h2>
+            <p><strong>Node.js:</strong></p>
+            <pre>cd example-provider
+node server.js</pre>
+            <p><strong>Python:</strong></p>
+            <pre>cd example-provider
+python3 server.py</pre>
+            <p><strong>Static (Python):</strong></p>
+            <pre>cd example-provider
+python3 -m http.server 3000</pre>
+        </div>
+
+        <div class="metadata">
+            <h3>📌 Provider Metadata (from codifly.json)</h3>
+            <p>✓ Name: Example Game Hub</p>
+            <p>✓ GitHub: your-github-username</p>
+            <p>✓ Email: your-email@example.com</p>
+            <p>✓ Code Generation: Random</p>
+        </div>
+
+        <div class="info-section">
+            <h2>📖 Documentation</h2>
+            <p>For more information, see:</p>
+            <pre>QUICKSTART.md  - Get running in 30 seconds
+README.md      - Full setup guide
+DEPLOYMENT.md  - Cloud hosting options</pre>
+        </div>
+    </div>
+
+    <script>
+        // Games available in this provider (all 4-character codes)
+        const games = [
+            {
+                name: 'Snake',
+                code: 'snk1',
+                desc: 'Classic snake game. Use arrow keys to move.',
+                emoji: '🐍'
+            },
+            {
+                name: '2048',
+                code: '2048',
+                desc: 'Slide and merge tiles to reach 2048.',
+                emoji: '🔲'
+            },
+            {
+                name: 'Pong',
+                code: 'pong',
+                desc: 'Classic pong game. Use W/S or arrow keys.',
+                emoji: '🏓'
+            }
+        ];
+
+        // Render games grid
+        function renderGames() {
+            const grid = document.getElementById('gamesGrid');
+            grid.innerHTML = games.map(game => `
+                <div class="game-card">
+                    <div style="font-size: 40px; margin-bottom: 10px;">${game.emoji}</div>
+                    <div class="game-name">${game.name}</div>
+                    <div class="game-code">Code: <code>${game.code}</code></div>
+                    <div class="game-desc">${game.desc}</div>
+                    <button class="game-btn" onclick="copyCommand('${game.code}')">
+                        Copy Load Command
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function copyCommand(code) {
+            const cmd = `/load-code ${code}`;
+            navigator.clipboard.writeText(cmd).then(() => {
+                alert(`Copied to clipboard:\n\n${cmd}\n\nPaste in Code Compiler console!`);
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', renderGames);
+
+        // Add responsive styles
+        const style = document.createElement('style');
+        style.textContent = `
+            @media (max-width: 768px) {
+                .games-grid { grid-template-columns: 1fr; }
+                .container { padding: 10px; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

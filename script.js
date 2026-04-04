@@ -13,7 +13,6 @@ class CodeCompiler {
         this.codeFrame = document.getElementById('codeFrame');
         this.clearConsoleBtn = document.getElementById('clearConsoleBtn');
         
-        // Preview panel elements
         this.previewPanel = document.getElementById('previewPanel');
         this.previewContent = document.getElementById('previewContent');
         this.fullscreenBtn = document.getElementById('fullscreenBtn');
@@ -21,14 +20,9 @@ class CodeCompiler {
         this.mainContent = document.querySelector('.main-content');
         this.editorPanel = document.querySelector('.editor-panel');
         
-        // Panel resizing
         this.isResizing = false;
 
-        // Provider URL Management
-        this.providers = new Map();
-        this.loadProviders();
-
-        // Initialize
+        this.providers = window.__providers__;
         this.setupEventListeners();
         this.printWelcome();
     }
@@ -107,65 +101,10 @@ class CodeCompiler {
         const js = this.editors.js.value;
 
         // Create complete HTML document
-        const fullHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        ${css}
-    </style>
-</head>
-<body>
-    ${html}
-    <script>
-        // Override console methods to send to parent
-        const originalLog = console.log;
-        const originalError = console.error;
-        const originalWarn = console.warn;
-        const originalInfo = console.info;
-
-        console.log = function(...args) {
-            parent.postMessage({ type: 'console.log', data: args }, '*');
-            originalLog.apply(console, args);
-        };
-
-        console.error = function(...args) {
-            parent.postMessage({ type: 'console.error', data: args }, '*');
-            originalError.apply(console, args);
-        };
-
-        console.warn = function(...args) {
-            parent.postMessage({ type: 'console.warn', data: args }, '*');
-            originalWarn.apply(console, args);
-        };
-
-        console.info = function(...args) {
-            parent.postMessage({ type: 'console.info', data: args }, '*');
-            originalInfo.apply(console, args);
-        };
-
-        // Execute user JavaScript
-        try {
-            ${js}
-        } catch(error) {
-            parent.postMessage({ 
-                type: 'console.error', 
-                data: ['Runtime Error: ' + error.message] 
-            }, '*');
-        }
-
-        // Send ready signal
-        parent.postMessage({ type: 'iframe.ready' }, '*');
-    </script>
-</body>
-</html>
-        `;
+        const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>${css}</style></head><body>${html}<script>const a=console.log,e=console.error,r=console.warn,n=console.info;console.log=function(...t){parent.postMessage({type:'console.log',data:t},'*'),a.apply(console,t)},console.error=function(...t){parent.postMessage({type:'console.error',data:t},'*'),e.apply(console,t)},console.warn=function(...t){parent.postMessage({type:'console.warn',data:t},'*'),r.apply(console,t)},console.info=function(...t){parent.postMessage({type:'console.info',data:t},'*'),n.apply(console,t)};try{${js}}catch(t){parent.postMessage({type:'console.error',data:['Runtime Error: '+t.message]},'*')}parent.postMessage({type:'iframe.ready'},'*');<\/script></body></html>`;
 
         this.addLog('Code executed!', 'success');
         
-        // Set iframe content for hidden frame (for console capture)
         this.codeFrame.srcdoc = fullHtml;
         
         // Also render to preview panel
@@ -260,139 +199,27 @@ class CodeCompiler {
     }
 
     handleRegisterUrl(parts) {
-        // /register-url or /reg-url (add/remove/list) [name] [url]
-        const action = parts[1];
-        const name = parts[2];
-        const url = parts.slice(3).join(' ');
-
-        if (!action) {
-            this.addLog('Usage: /register-url (add/remove/list) [name] [url]', 'warn');
-            return;
-        }
-
-        if (action === 'add') {
-            if (!name || !url) {
-                this.addLog('Usage: /register-url add (name) (url)', 'warn');
-                return;
-            }
-            this.addProvider(name, url);
-        } else if (action === 'remove') {
-            if (!name) {
-                this.addLog('Usage: /register-url remove (name)', 'warn');
-                return;
-            }
-            if (this.providers.has(name)) {
-                this.providers.delete(name);
-                this.saveProviders();
-                this.addLog(`Provider "${name}" removed.`, 'success');
-            } else {
-                this.addLog(`Provider "${name}" not found.`, 'error');
-            }
-        } else if (action === 'list') {
-            this.listProviders();
-        } else {
-            this.addLog('Usage: /register-url (add/remove/list) [name] [url]', 'warn');
-        }
+        const action=parts[1];const name=parts[2];const url=parts.slice(3).join(' ');
+        if(!action){this.addLog('Usage: /register-url (add/remove/list) [name] [url]','warn');return}
+        if(action==='add'){if(!name||!url){this.addLog('Usage: /register-url add (name) (url)','warn');return}this.addProvider(name,url)}else if(action==='remove'){if(!name){this.addLog('Usage: /register-url remove (name)','warn');return}if(this.providers.get(name)){this.providers.rmv(name);this.addLog(`Provider "${name}" removed.`,'success')}else{this.addLog(`Provider "${name}" not found.`,'error')}}else if(action==='list'){this.listProviders()}else{this.addLog('Usage: /register-url (add/remove/list) [name] [url]','warn')}
     }
 
     async addProvider(name, url) {
         try {
             this.addLog(`Registering provider "${name}"...`, 'info');
-            
-            // Try to fetch codifly.json
-            let metadata = { url };
-            
-            try {
-                // Ensure URL ends with / for proper path resolution
-                const baseUrl = url.endsWith('/') ? url : url + '/';
-                const response = await fetch(baseUrl + 'codifly.json', {
-                    mode: 'cors',
-                    credentials: 'omit'
-                });
-                
-                if (response.ok) {
-                    const codiflyData = await response.json();
-                    metadata.metadata = {
-                        name: codiflyData.name || 'Unknown',
-                        github: codiflyData.github || 'N/A',
-                        email: codiflyData.email || 'N/A',
-                        codeGen: codiflyData.codeGen || 'random' // 'random', 'site', or 'user'
-                    };
-                    this.addLog(`✓ Found codifly.json`, 'success');
-                }
-            } catch (error) {
-                // codifly.json not found, that's okay
-                this.addLog(`⚠ codifly.json not found (optional)`, 'warn');
-            }
-            
-            // Store provider
-            this.providers.set(name, metadata);
-            this.saveProviders();
-            this.addLog(`Provider "${name}" registered: ${url}`, 'success');
-            
-            if (metadata.metadata) {
-                this.addLog(`  Site: ${metadata.metadata.name}`, 'log');
-                this.addLog(`  Creator: ${metadata.metadata.github} (${metadata.metadata.email})`, 'log');
-                this.addLog(`  Code Gen: ${metadata.metadata.codeGen}`, 'log');
-            }
+            let m={url:url};
+            try{const b=url.endsWith('/')?url:url+'/';const c=await fetch(b+'codifly.json',{mode:'cors',credentials:'omit'});if(c.ok){const d=await c.json();m.metadata={name:d.name||'Unknown',github:d.github||'N/A',email:d.email||'N/A',codeGen:d.codeGen||'random'};this.addLog('✓ Found codifly.json','success')}}catch(e){this.addLog('⚠ codifly.json not found (optional)','warn')}
+            this.providers.add(name,m);
+            this.addLog(`Provider "${name}" registered: ${url}`,'success');
+            if(m.metadata){this.addLog(`  Site: ${m.metadata.name}`,'log');this.addLog(`  Creator: ${m.metadata.github} (${m.metadata.email})`,'log');this.addLog(`  Code Gen: ${m.metadata.codeGen}`,'log')}
         } catch (error) {
-            this.addLog(`Error registering provider: ${error.message}`, 'error');
+            this.addLog(`Error registering provider: ${error.message}`,'error');
         }
     }
 
-    handleLoadUrl(parts) {
-        // /load-url (provider-name) (code)
-        const providerName = parts[1];
-        const code = parts.slice(2).join(' ');
+    handleLoadUrl(parts){const p=parts[1];const c=parts.slice(2).join(' ');if(!p||!c){this.addLog('Usage: /load-url (provider-name) (code)','warn');return}if(!/^[a-zA-Z0-9]{4}$/.test(c)){this.addLog('❌ Code must be exactly 4 alphanumeric characters (a-z, A-Z, 0-9)','error');return}const d=this.providers.get(p);if(!d){this.addLog(`Provider "${p}" not found.`,'error');return}const u=typeof d==='string'?d:d.url;this.loadSiteFromUrl(`${u}${c}`,c)}
 
-        if (!providerName || !code) {
-            this.addLog('Usage: /load-url (provider-name) (code)', 'warn');
-            return;
-        }
-
-        if (!this.providers.has(providerName)) {
-            this.addLog(`Provider "${providerName}" not found.`, 'error');
-            return;
-        }
-
-        const providerData = this.providers.get(providerName);
-        const baseUrl = typeof providerData === 'string' ? providerData : providerData.url;
-        const fullUrl = `${baseUrl}${code}`;
-
-        this.loadSiteFromUrl(fullUrl, code);
-    }
-
-    handleLoadCode(parts) {
-        // /load-code (code) - loads from all providers if available
-        const code = parts.slice(1).join(' ');
-
-        if (!code) {
-            this.addLog('Usage: /load-code (code)', 'warn');
-            return;
-        }
-
-        if (this.providers.size === 0) {
-            this.addLog('No providers registered. Use /register-url to add providers.', 'warn');
-            return;
-        }
-
-        // Try first provider
-        const providerName = this.providers.keys().next().value;
-        const providerData = this.providers.get(providerName);
-        const baseUrl = typeof providerData === 'string' ? providerData : providerData.url;
-        const fullUrl = `${baseUrl}${code}`;
-
-        this.loadSiteFromUrl(fullUrl, code);
-    }
-        }
-
-        // Try first provider
-        const providerName = this.providers.keys().next().value;
-        const baseUrl = this.providers.get(providerName);
-        const fullUrl = `${baseUrl}${code}`;
-
-        this.loadSiteFromUrl(fullUrl, code);
-    }
+    handleLoadCode(parts){const c=parts.slice(1).join(' ');if(!c){this.addLog('Usage: /load-code (code)','warn');return}if(!/^[a-zA-Z0-9]{4}$/.test(c)){this.addLog('❌ Code must be exactly 4 alphanumeric characters (a-z, A-Z, 0-9)','error');return}const p=this.providers.lst();if(!Object.keys(p).length){this.addLog('No providers registered. Use /register-url to add providers.','warn');return}const n=Object.keys(p)[0];const d=p[n];const u=typeof d==='string'?d:d.url;this.loadSiteFromUrl(`${u}${c}`,c)}
 
     async loadSiteFromUrl(url, code) {
         try {
@@ -486,26 +313,7 @@ class CodeCompiler {
         }
     }
 
-    listProviders() {
-        if (this.providers.size === 0) {
-            this.addLog('No providers registered.', 'warn');
-            return;
-        }
-
-        this.addLog('=== Registered Providers ===', 'info');
-        this.providers.forEach((providerData, name) => {
-            const url = typeof providerData === 'string' ? providerData : providerData.url;
-            this.addLog(`\n[${name}]`, 'log');
-            this.addLog(`  URL: ${url}`, 'log');
-            
-            if (providerData.metadata) {
-                this.addLog(`  Site: ${providerData.metadata.name}`, 'log');
-                this.addLog(`  Creator: ${providerData.metadata.github}`, 'log');
-                this.addLog(`  Email: ${providerData.metadata.email}`, 'log');
-                this.addLog(`  Code Gen: ${providerData.metadata.codeGen}`, 'log');
-            }
-        });
-    }
+    listProviders(){const p=this.providers.lst();if(!Object.keys(p).length){this.addLog('No providers registered.','warn');return}this.addLog('=== Registered Providers ===','info');for(let n in p){const d=p[n];const u=typeof d==='string'?d:d.url;this.addLog(`\n[${n}]`,'log');this.addLog(`  URL: ${u}`,'log');if(d.metadata){this.addLog(`  Site: ${d.metadata.name}`,'log');this.addLog(`  Creator: ${d.metadata.github}`,'log');this.addLog(`  Email: ${d.metadata.email}`,'log');this.addLog(`  Code Gen: ${d.metadata.codeGen}`,'log')}}}
 
     showHelp() {
         this.addLog('=== Available Commands ===', 'info');
@@ -560,28 +368,6 @@ class CodeCompiler {
         return text.replace(/[&<>"']/g, m => map[m]);
     }
 
-    saveProviders() {
-        try {
-            const data = Object.fromEntries(this.providers);
-            localStorage.setItem('code-compiler-providers', JSON.stringify(data));
-        } catch (error) {
-            console.error('Failed to save providers:', error);
-        }
-    }
-
-    loadProviders() {
-        try {
-            const data = localStorage.getItem('code-compiler-providers');
-            if (data) {
-                const parsed = JSON.parse(data);
-                Object.entries(parsed).forEach(([name, url]) => {
-                    this.providers.set(name, url);
-                });
-            }
-        } catch (error) {
-            console.error('Failed to load providers:', error);
-        }
-    }
 }
 
 // Initialize when DOM is ready

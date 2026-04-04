@@ -2,90 +2,79 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Code Editor Pro">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="Professional Code Editor - Write, Run & Preview HTML, CSS, JavaScript">
     <title>Code Compiler Pro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Top Navigation Bar -->
-        <nav class="navbar">
-            <div class="navbar-brand">
-                <h1>⚡ Code Compiler</h1>
-            </div>
-            <div class="navbar-controls">
-                <button id="runBtn" class="btn-run">▶ Run Code</button>
-                <button id="formatBtn" class="btn btn-secondary">⚙ Format</button>
-            </div>
-        </nav>
-
-        <!-- Main Grid Layout -->
-        <div class="grid-layout">
-            <!-- Left Panel: HTML Editor -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h3>HTML</h3>
-                </div>
-                <textarea id="htmlEditor" class="editor-input" placeholder="<h1>Hello World</h1>
-<p>Welcome to Code Compiler</p>"></textarea>
-            </div>
-
-            <!-- Middle Panel: CSS Editor -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h3>CSS</h3>
-                </div>
-                <textarea id="cssEditor" class="editor-input" placeholder="body {
-  font-family: Arial, sans-serif;
-  padding: 20px;
-}"></textarea>
-            </div>
-
-            <!-- Right Panel: JavaScript Editor -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h3>JavaScript</h3>
-                </div>
-                <textarea id="jsEditor" class="editor-input" placeholder="console.log('Hello from JavaScript!');
-// Your code here"></textarea>
-            </div>
-
-            <!-- Bottom Right: Preview -->
-            <div class="panel full-width">
-                <div class="panel-header">
-                    <h3>Preview</h3>
-                    <div class="header-buttons">
-                        <button id="fullscreenBtn" class="btn btn-icon">⛶</button>
-                        <button id="clearPreviewBtn" class="btn btn-icon">✕</button>
-                    </div>
-                </div>
-                <div id="previewContent" class="preview-output">
-                    <div class="preview-placeholder">
-                        <p>Click <strong>Run Code</strong> to execute</p>
-                    </div>
+    <div class="app-container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="branding">⚡ Code Compiler Pro</div>
+            <div class="file-tabs-container">
+                <div class="file-tabs" id="fileTabs"></div>
+                <div class="file-actions">
+                    <button id="newFileBtn" class="tab-btn-action" title="New File">➕</button>
+                    <button id="uploadFileBtn" class="tab-btn-action" title="Upload File">📤</button>
+                    <input type="file" id="fileInput" style="display:none;">
                 </div>
             </div>
+            <div class="top-controls">
+                <button id="runBtn" class="btn-run">▶ Run</button>
+                <button id="previewBtn" class="btn-preview">🗖 Preview</button>
+            </div>
+        </div>
 
-            <!-- Bottom Left: Console -->
-            <div class="panel full-width">
-                <div class="panel-header">
-                    <h3>Console</h3>
-                    <button id="clearConsoleBtn" class="btn btn-icon">🗑</button>
+        <!-- Main Editor Area -->
+        <div class="editor-container">
+            <!-- Code Editor -->
+            <div class="code-editor-wrapper">
+                <div class="editor-tabs">
+                    <select id="languageSelect" class="language-select">
+                        <option value="html">HTML</option>
+                        <option value="css">CSS</option>
+                        <option value="javascript">JavaScript</option>
+                    </select>
+                </div>
+                <textarea id="codeEditor" class="code-editor" placeholder="// Start coding..."></textarea>
+            </div>
+
+            <!-- Console at Bottom -->
+            <div class="console-section">
+                <div class="console-header">
+                    <span>📟 DevTools Console</span>
+                    <button id="clearConsoleBtn" class="console-btn">Clear</button>
                 </div>
                 <div id="consoleOutput" class="console-output"></div>
-                <div class="console-input-row">
+                <div class="console-input-wrapper">
                     <span class="console-prompt">&gt;</span>
-                    <input type="text" id="consoleInput" class="console-input" placeholder="Type /help for commands">
+                    <input type="text" id="consoleInput" class="console-input" placeholder="Type command or /help">
                 </div>
             </div>
+        </div>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="preview-modal">
+            <div class="preview-header">
+                <span>🔍 Preview</span>
+                <button id="closePreviewBtn" class="preview-close">✕</button>
+            </div>
+            <div id="previewContent" class="preview-content"></div>
         </div>
     </div>
 
     <iframe id="codeFrame" style="display:none;"></iframe>
+    <input type="file" id="fileUploadInput" style="display:none;" accept=".html,.css,.js,.txt">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="providers.js"></script>
-    <script src="script-enhanced.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

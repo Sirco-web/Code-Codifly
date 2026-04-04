@@ -113,6 +113,9 @@ class CodeCompiler {
             case '/update-url':
                 this.handleUpdateUrl(parts);
                 break;
+            case '/update-cache':
+                this.handleUpdateCache();
+                break;
             case '/load-code':
                 this.handleLoadCode(parts);
                 break;
@@ -139,6 +142,7 @@ class CodeCompiler {
         this.addLog('/register-url add <name> <url> - Register provider', 'log');
         this.addLog('/register-url remove <name> - Remove provider', 'log');
         this.addLog('/update-url <provider|all> <url> - Update provider URL', 'log');
+        this.addLog('/update-cache - Refresh all sites and cache', 'log');
         this.addLog('/load-code <4-char-code> - Load site by code', 'log');
         this.addLog('/list-providers - Show all providers', 'log');
         this.addLog('/cache-info - Show cache info', 'log');
@@ -202,31 +206,7 @@ class CodeCompiler {
             this.addLog(`Updating ${providerNames.length} provider(s)...`, 'info');
             for (const providerName of providerNames) {
                 const provider = providers[providerName];
-                provider.url = newUrl;
-                
-                // Re-fetch metadata from new URL
-                try {
-                    const fetchUrl = newUrl.endsWith('/') ? newUrl : newUrl + '/';
-                    const response = await fetch(fetchUrl + 'codifly.json', {
-                        mode: 'cors',
-                        credentials: 'omit'
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        provider.metadata = data;
-                        provider.codeLookup = {};
-                        
-                        if (data.codes && Array.isArray(data.codes)) {
-                            data.codes.forEach(codeObj => {
-                                provider.codeLookup[codeObj.code] = codeObj;
-                            });
-                        }
-                        this.addLog(`✓ Updated "${providerName}"`, 'success');
-                    }
-                } catch (e) {
-                    this.addLog(`⚠ Could not fetch codifly.json for "${providerName}"`, 'warn');
-                }
+                await this.updateProviderWithCache(providerName, provider, newUrl);
             }
         } else {
             // Update single provider
@@ -236,37 +216,86 @@ class CodeCompiler {
             }
 
             const provider = providers[name];
-            provider.url = newUrl;
-            this.addLog(`Updating "${name}" URL to ${newUrl}...`, 'info');
-
-            try {
-                const fetchUrl = newUrl.endsWith('/') ? newUrl : newUrl + '/';
-                const response = await fetch(fetchUrl + 'codifly.json', {
-                    mode: 'cors',
-                    credentials: 'omit'
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    provider.metadata = data;
-                    provider.codeLookup = {};
-                    
-                    if (data.codes && Array.isArray(data.codes)) {
-                        data.codes.forEach(codeObj => {
-                            provider.codeLookup[codeObj.code] = codeObj;
-                        });
-                    }
-                    this.addLog(`✓ Provider "${name}" updated`, 'success');
-                    if (data.name) {
-                        this.addLog(`  ${data.name}`, 'log');
-                    }
-                } else {
-                    this.addLog(`✓ URL updated (codifly.json not found)`, 'warn');
-                }
-            } catch (error) {
-                this.addLog(`✓ URL updated (could not fetch metadata: ${error.message})`, 'warn');
-            }
+            await this.updateProviderWithCache(name, provider, newUrl);
         }
+    }
+
+    async updateProviderWithCache(providerName, provider, newUrl) {
+        provider.url = newUrl;
+        this.addLog(`Updating "${providerName}"...`, 'info');
+
+        try {
+            const fetchUrl = newUrl.endsWith('/') ? newUrl : newUrl + '/';
+            const response = await fetch(fetchUrl + 'codifly.json', {
+                mode: 'cors',
+                credentials: 'omit'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                provider.metadata = data;
+                provider.codeLookup = {};
+
+                // Build code lookup map
+                if (data.codes && Array.isArray(data.codes)) {
+                    data.codes.forEach(codeObj => {
+                        provider.codeLookup[codeObj.code] = codeObj;
+                    });
+                    
+                    // Fetch and cache each code's file
+                    this.addLog(`  Caching ${data.codes.length} file(s)...`, 'log');
+                    for (const codeObj of data.codes) {
+                        if (codeObj.file) {
+                            try {
+                                const fileUrl = `${fetchUrl}${codeObj.file}`;
+                                const fileResponse = await fetch(fileUrl, {
+                                    mode: 'cors',
+                                    credentials: 'omit'
+                                });
+
+                                if (fileResponse.ok) {
+                                    const fileContent = await fileResponse.text();
+                                    const cacheKey = `site-${codeObj.code}`;
+                                    await this.cacheSite(cacheKey, fileContent);
+                                    this.addLog(`    ✓ Cached "${codeObj.name}" (${codeObj.code})`, 'success');
+                                } else {
+                                    this.addLog(`    ⚠ Failed to fetch ${codeObj.file}`, 'warn');
+                                }
+                            } catch (e) {
+                                this.addLog(`    ⚠ Error caching "${codeObj.code}": ${e.message}`, 'warn');
+                            }
+                        }
+                    }
+                }
+
+                this.addLog(`✓ Provider "${providerName}" updated and cached`, 'success');
+                if (data.name) {
+                    this.addLog(`  ${data.name}`, 'log');
+                }
+            } else {
+                this.addLog(`✓ URL updated (codifly.json not found)`, 'warn');
+            }
+        } catch (error) {
+            this.addLog(`✓ URL updated (could not fetch metadata: ${error.message})`, 'warn');
+        }
+    }
+
+    async handleUpdateCache() {
+        const providers = this.providers.lst();
+        const providerNames = Object.keys(providers);
+
+        if (providerNames.length === 0) {
+            this.addLog('✗ No providers registered', 'warn');
+            return;
+        }
+
+        this.addLog(`Refreshing cache for ${providerNames.length} provider(s)...`, 'info');
+        for (const providerName of providerNames) {
+            const provider = providers[providerName];
+            const currentUrl = typeof provider === 'string' ? provider : provider.url;
+            await this.updateProviderWithCache(providerName, provider, currentUrl);
+        }
+        this.addLog('✓ Cache refresh complete', 'success');
     }
 
     async addProvider(name, url) {
@@ -291,6 +320,27 @@ class CodeCompiler {
                         data.codes.forEach(codeObj => {
                             metadata.codeLookup[codeObj.code] = codeObj;
                         });
+                        
+                        // Cache files for each code
+                        for (const codeObj of data.codes) {
+                            if (codeObj.file) {
+                                try {
+                                    const fileUrl = `${fetchUrl}${codeObj.file}`;
+                                    const fileResponse = await fetch(fileUrl, {
+                                        mode: 'cors',
+                                        credentials: 'omit'
+                                    });
+
+                                    if (fileResponse.ok) {
+                                        const fileContent = await fileResponse.text();
+                                        const cacheKey = `site-${codeObj.code}`;
+                                        await this.cacheSite(cacheKey, fileContent);
+                                    }
+                                } catch (e) {
+                                    // Silently skip file caching errors during registration
+                                }
+                            }
+                        }
                     }
                     
                     this.addLog('✓ found codifly.json', 'success');

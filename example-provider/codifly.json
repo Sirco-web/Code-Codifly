@@ -11,25 +11,11 @@
   },
   "codes": [
     {
-      "code": "snk1",
-      "name": "Snake Game",
-      "file": "games/snake.html",
+      "code": "exam",
+      "name": "Game Hub",
+      "file": "index.html",
       "type": "html",
-      "assets": ["game HTML (inline JavaScript and CSS)"]
-    },
-    {
-      "code": "gm48",
-      "name": "2048 Game",
-      "file": "games/2048.html",
-      "type": "html",
-      "assets": ["game HTML (inline JavaScript and CSS)"]
-    },
-    {
-      "code": "pong",
-      "name": "Pong Game",
-      "file": "games/pong.html",
-      "type": "html",
-      "assets": ["game HTML (inline JavaScript and CSS)"]
+      "assets": ["Provider index with all games"]
     }
   ]
 }

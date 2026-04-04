@@ -3,84 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code Compiler</title>
+    <title>Code Compiler Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>Code Compiler</h1>
-            <button id="runBtn" class="run-btn">▶ Run</button>
-        </div>
+        <!-- Top Navigation Bar -->
+        <nav class="navbar">
+            <div class="navbar-brand">
+                <h1>⚡ Code Compiler</h1>
+            </div>
+            <div class="navbar-controls">
+                <button id="runBtn" class="btn-run">▶ Run Code</button>
+                <button id="formatBtn" class="btn btn-secondary">⚙ Format</button>
+            </div>
+        </nav>
 
-        <!-- Main Content Area -->
-        <div class="main-content">
-            <!-- Left Editor Panel -->
-            <div class="editor-panel">
-                <!-- Tabs -->
-                <div class="tabs">
-                    <button class="tab-btn active" data-type="html">
-                        <span class="tab-icon">◆</span> HTML
-                    </button>
-                    <button class="tab-btn" data-type="css">
-                        <span class="tab-icon">◆</span> CSS
-                    </button>
-                    <button class="tab-btn" data-type="js">
-                        <span class="tab-icon">◆</span> JavaScript
-                    </button>
+        <!-- Main Grid Layout -->
+        <div class="grid-layout">
+            <!-- Left Panel: HTML Editor -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>HTML</h3>
                 </div>
-
-                <!-- Editors Container -->
-                <div class="editors-container">
-                    <textarea id="htmlEditor" class="editor active" placeholder="<!-- Write your HTML here -->\n\n<h1>Hello World</h1>" data-type="html"></textarea>
-                    <textarea id="cssEditor" class="editor" placeholder="/* Write your CSS here */\n\nbody {\n  font-family: Arial, sans-serif;\n}" data-type="css"></textarea>
-                    <textarea id="jsEditor" class="editor" placeholder="// Write your JavaScript here\n\nconsole.log('Hello from JavaScript!');" data-type="js"></textarea>
-                </div>
-
-                <!-- Console Section -->
-                <div class="console-section">
-                    <div class="console-header">
-                        <span class="console-title">Debug Console</span>
-                        <button id="clearConsoleBtn" class="console-btn">Clear</button>
-                    </div>
-                    <div id="consoleOutput" class="console-output"></div>
-                    <div class="console-input-container">
-                        <span class="console-prompt">&gt;</span>
-                        <input 
-                            type="text" 
-                            id="consoleInput" 
-                            class="console-input" 
-                            placeholder="Type command or code... (/help for commands)"
-                            autocomplete="off"
-                        >
-                    </div>
-                </div>
+                <textarea id="htmlEditor" class="editor-input" placeholder="<h1>Hello World</h1>
+<p>Welcome to Code Compiler</p>"></textarea>
             </div>
 
-            <!-- Divider -->
-            <div class="panel-divider" id="panelDivider"></div>
-
-            <!-- Right Preview Panel -->
-            <div class="preview-panel" id="previewPanel">
-                <div class="preview-header">
-                    <span class="preview-title">Preview</span>
-                    <button id="fullscreenBtn" class="preview-btn" title="Fullscreen">⛶</button>
+            <!-- Middle Panel: CSS Editor -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>CSS</h3>
                 </div>
-                <div id="previewContent" class="preview-content">
+                <textarea id="cssEditor" class="editor-input" placeholder="body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}"></textarea>
+            </div>
+
+            <!-- Right Panel: JavaScript Editor -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>JavaScript</h3>
+                </div>
+                <textarea id="jsEditor" class="editor-input" placeholder="console.log('Hello from JavaScript!');
+// Your code here"></textarea>
+            </div>
+
+            <!-- Bottom Right: Preview -->
+            <div class="panel full-width">
+                <div class="panel-header">
+                    <h3>Preview</h3>
+                    <div class="header-buttons">
+                        <button id="fullscreenBtn" class="btn btn-icon">⛶</button>
+                        <button id="clearPreviewBtn" class="btn btn-icon">✕</button>
+                    </div>
+                </div>
+                <div id="previewContent" class="preview-output">
                     <div class="preview-placeholder">
-                        <p>Click Run to see preview</p>
+                        <p>Click <strong>Run Code</strong> to execute</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- Bottom Left: Console -->
+            <div class="panel full-width">
+                <div class="panel-header">
+                    <h3>Console</h3>
+                    <button id="clearConsoleBtn" class="btn btn-icon">🗑</button>
+                </div>
+                <div id="consoleOutput" class="console-output"></div>
+                <div class="console-input-row">
+                    <span class="console-prompt">&gt;</span>
+                    <input type="text" id="consoleInput" class="console-input" placeholder="Type /help for commands">
                 </div>
             </div>
         </div>
     </div>
 
-    <div style="display:none!important;visibility:hidden!important;position:absolute!important;top:-9999px!important;left:-9999px!important;width:1px!important;height:1px!important;">
-        <iframe id="codeFrame"></iframe>
-    </div>
+    <iframe id="codeFrame" style="display:none;"></iframe>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="providers.js"></script>
-    <script src="script.js"></script>
+    <script src="script-enhanced.js"></script>
 </body>
 </html>

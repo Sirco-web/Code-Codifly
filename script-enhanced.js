@@ -187,12 +187,16 @@ class CodeCompiler {
 
                 if (response.ok) {
                     const data = await response.json();
-                    metadata.metadata = {
-                        name: data.name || 'Unknown',
-                        github: data.github || 'N/A',
-                        email: data.email || 'N/A',
-                        codeGen: data.codeGen || 'random'
-                    };
+                    metadata.metadata = data;  // Store full codifly.json
+                    metadata.codeLookup = {};  // Create lookup map for codes
+                    
+                    // Build code lookup map for fast access
+                    if (data.codes && Array.isArray(data.codes)) {
+                        data.codes.forEach(codeObj => {
+                            metadata.codeLookup[codeObj.code] = codeObj;
+                        });
+                    }
+                    
                     this.addLog('✓ found codifly.json', 'success');
                 }
             } catch (e) {
@@ -230,8 +234,16 @@ class CodeCompiler {
 
         const firstProvider = Object.keys(providers)[0];
         const provider = providers[firstProvider];
-        const url = typeof provider === 'string' ? provider : provider.url;
-        this.loadSiteFromUrl(`${url}${code}`, code);
+        
+        // Look up the code in the provider's metadata
+        if (provider.codeLookup && provider.codeLookup[code]) {
+            const codeObj = provider.codeLookup[code];
+            const providerUrl = typeof provider === 'string' ? provider : provider.url;
+            const fileUrl = providerUrl.endsWith('/') ? providerUrl : providerUrl + '/';
+            this.loadSiteFromUrl(`${fileUrl}${codeObj.file}`, code);
+        } else {
+            this.addLog(`✗ Code "${code}" not found in provider`, 'error');
+        }
     }
 
     handleLoadUrl(parts) {
@@ -252,8 +264,15 @@ class CodeCompiler {
             return;
         }
 
-        const url = typeof p === 'string' ? p : p.url;
-        this.loadSiteFromUrl(`${url}${code}`, code);
+        // Look up the code in the provider's metadata
+        if (p.codeLookup && p.codeLookup[code]) {
+            const codeObj = p.codeLookup[code];
+            const providerUrl = typeof p === 'string' ? p : p.url;
+            const fileUrl = providerUrl.endsWith('/') ? providerUrl : providerUrl + '/';
+            this.loadSiteFromUrl(`${fileUrl}${codeObj.file}`, code);
+        } else {
+            this.addLog(`✗ Code "${code}" not found in provider`, 'error');
+        }
     }
 
     async loadSiteFromUrl(url, code) {
@@ -290,13 +309,73 @@ class CodeCompiler {
     }
 
     displaySite(html) {
-        this.previewContent.innerHTML = '';
+        // Create fullscreen overlay for provider
+        let overlay = document.getElementById('providerOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'providerOverlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 9999;
+                background: white;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+            `;
+            
+            // Create close button
+            const closeBtn = document.createElement('button');
+            closeBtn.innerHTML = '✕ Back to Editor';
+            closeBtn.style.cssText = `
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                padding: 8px 16px;
+                background: #238636;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 600;
+                z-index: 10000;
+            `;
+            closeBtn.addEventListener('click', () => {
+                overlay.style.display = 'none';
+                this.addLog('Back to editor', 'info');
+            });
+            overlay.appendChild(closeBtn);
+            
+            document.body.appendChild(overlay);
+        }
+        
+        // Clear and add iframe
+        const existingIframe = overlay.querySelector('iframe');
+        if (existingIframe) existingIframe.remove();
+        
         const iframe = document.createElement('iframe');
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
+        iframe.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            margin: 0;
+            padding: 0;
+        `;
         iframe.srcdoc = html;
-        this.previewContent.appendChild(iframe);
+        overlay.appendChild(iframe);
+        
+        // Show overlay
+        overlay.style.display = 'block';
+        this.addLog('Provider loaded fullscreen', 'success');
     }
 
     listProviders() {
@@ -340,6 +419,10 @@ class CodeCompiler {
         const html = this.editors.html.value;
         const css = this.editors.css.value;
         const js = this.editors.js.value;
+
+        // Hide provider overlay if visible
+        const overlay = document.getElementById('providerOverlay');
+        if (overlay) overlay.style.display = 'none';
 
         this.addLog('Running code...', 'info');
 
@@ -434,6 +517,8 @@ class CodeCompiler {
 
     clearPreview() {
         this.previewContent.innerHTML = `<div class="preview-placeholder"><p>Click <strong>Run Code</strong> to execute</p></div>`;
+        const overlay = document.getElementById('providerOverlay');
+        if (overlay) overlay.style.display = 'none';
         this.addLog('Cleared preview', 'info');
     }
 

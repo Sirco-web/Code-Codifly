@@ -2,8 +2,8 @@
   "name": "Example Game Hub",
   "github": "your-github-username",
   "email": "your-email@example.com",
-  "codeGen": "random",
-  "description": "A simple example provider showing how to set up a game/content provider for Code Compiler",
+  "codeGen": "site",
+  "description": "Static provider with predefined games",
   "version": "1.0.0",
   "cache": {
     "type": "html",
@@ -13,26 +13,23 @@
     {
       "code": "snk1",
       "name": "Snake Game",
+      "file": "games/snake.html",
       "type": "html",
-      "assets": [
-        "game HTML (inline JavaScript and CSS)"
-      ]
+      "assets": ["game HTML (inline JavaScript and CSS)"]
     },
     {
-      "code": "2048",
+      "code": "gm48",
       "name": "2048 Game",
+      "file": "games/2048.html",
       "type": "html",
-      "assets": [
-        "game HTML (inline JavaScript and CSS)"
-      ]
+      "assets": ["game HTML (inline JavaScript and CSS)"]
     },
     {
       "code": "pong",
       "name": "Pong Game",
+      "file": "games/pong.html",
       "type": "html",
-      "assets": [
-        "game HTML (inline JavaScript and CSS)"
-      ]
+      "assets": ["game HTML (inline JavaScript and CSS)"]
     }
   ]
 }

@@ -1,64 +1,71 @@
 # Example Provider Setup Guide
 
-This folder demonstrates how to create a provider site for the Code Compiler.
+This folder demonstrates how to create a **STATIC provider** for Code Compiler.
 
-## ⚠️ CRITICAL: codifly.json is MANDATORY
+## ⚠️ CRITICAL: Providers Are STATIC (No Servers)
+
+**A provider is a collection of static files.** No Node.js, no Python, no server code needed!
+
+- Provider = HTML files + codifly.json
+- Codes = Defined in codifly.json
+- Caching = Code Compiler handles everything
+- Just serve the files with any static server
+
+## ⚠️ MANDATORY: codifly.json
 
 **Every valid Codifly provider MUST have `codifly.json` in the root directory.**
 
-This file identifies your site as a Codifly provider. Code Compiler requires it to:
-- Recognize your provider as valid
-- Auto-discover provider metadata
-- Establish trust relationship
-- Allow content loading
+This file tells Code Compiler:
+- What codes are available (e.g., snk1, gm48, pong)
+- What files to cache
+- Provider metadata (name, creator, email)
+- Whether codes are site-defined or randomly generated
 
-**Without codifly.json, Code Compiler will NOT load your provider. Period.**
+**Without codifly.json, Code Compiler will NOT recognize your provider.**
 
 ## What is a Provider?
 
-A provider is a web server that hosts games, sites, or content that can be loaded into the Code Compiler through the console using special commands.
+A **provider** is a collection of static HTML files plus a codifly.json metadata file. Code Compiler loads content from the provider using predefined 4-character codes.
 
 ## Code Format (IMPORTANT)
 
-**All codes MUST be exactly 4 characters: letters (a-z, A-Z) and/or digits (0-9)**
+**All codes MUST be exactly 4 alphanumeric characters (a-z, A-Z, 0-9)**
 
 Valid examples:
-- `abc1` ✅
-- `test` ✅
-- `9999` ✅
-- `xYz0` ✅
+- `snk1` ✅ (code for Snake game)
+- `gm48` ✅ (code for 2048 game)
+- `pong` ✅ (code for Pong game)
 
 Invalid examples:
-- `ab` ❌ (too short)
+- `abc` ❌ (too short)
 - `abcde` ❌ (too long)
 - `abc!` ❌ (special character)
-- `-abc` ❌ (special character)
-
-When a user loads a code, Code Compiler validates it and sends it to the provider:
-```
-/load-code abc1  →  https://your-provider.com/?code=abc1
-```
 
 ## How It Works
 
-1. **Register a Provider URL**: 
-   ```
-   /register-url add games https://your-provider.com/?code=
-   /reg-url add games https://your-provider.com/?code=
+1. **Define codes in codifly.json**: 
+   ```json
+   "codeGen": "site",
+   "codes": [
+     { "code": "snk1", "name": "Snake", "file": "games/snake.html" },
+     { "code": "gm48", "name": "2048", "file": "games/2048.html" }
+   ]
    ```
 
-2. **Load Content by Code** (4-char alphanumeric):
+2. **User registers provider**:
    ```
-/load-url games snk1
-/load-code test
-```
+   /register-url add games https://your-provider.com/
+   ```
+   Code Compiler fetches `codifly.json` and learns about your codes
 
-3. **Provider Route Handling**:
-   - When user loads code `abc1`
-   - Code Compiler validates: must be 4 alphanumeric characters ✓
-   - Request goes to: `https://your-provider.com/?code=abc1`
-   - Your server/site returns the HTML/game for that code
-   - Code Compiler caches the assets (per codifly.json) and opens in preview
+3. **User loads a code**:
+   ```
+   /load-code snk1
+   ```
+   Code Compiler looks up "snk1" in codifly.json, finds it maps to `games/snake.html`
+
+4. **Provider serves the file**: 
+   Code Compiler fetches the static HTML file and caches it
 
 ## Provider Requirements
 
@@ -69,78 +76,65 @@ Located at: `https://your-provider.com/codifly.json`
 
 ```json
 {
-  "name": "Provider Name",
+  "name": "Example Game Hub",
   "github": "your-github-username",
   "email": "contact@example.com",
-  "codeGen": "random"
-}
-```
-
-**All four fields are REQUIRED:**
-- `name`: Display name of your provider (required)
-- `github`: GitHub username of maintainer (required)
-- `email`: Contact email (required)
-- `codeGen`: How codes are generated (required):
-  - `"random"` - Codes generated randomly
-  - `"site"` - Codes determined by the website
-  - `"user"` - Users can create their own codes
-
-**Optional fields:**
-- `cache`: Specifies what assets Code Compiler should cache
-  - `type`: Type of content ("html", "json", "image", etc.)
-  - `description`: What gets cached
-- `codes`: (Optional) Array of available codes with metadata
-  - Each code can list its name and what assets it uses
-  - Helps Code Compiler understand what to cache for each code
-  - Format: `{ "code": "snk1", "name": "Snake", "type": "html", "assets": [...] }`
-
-**Complete Example:**
-```json
-{
-  "name": "Example Game Hub",
-  "github": "your-username",
-  "email": "you@example.com",
-  "codeGen": "random",
-  "cache": {
-    "type": "html",
-    "description": "Games served as complete HTML responses"
-  },
+  "codeGen": "site",
   "codes": [
     {
       "code": "snk1",
       "name": "Snake Game",
-      "type": "html",
-      "assets": ["game HTML (inline JavaScript and CSS)"]
+      "file": "games/snake.html"
+    },
+    {
+      "code": "gm48",
+      "name": "2048 Game",
+      "file": "games/2048.html"
     }
   ]
 }
 ```
 
-Without this file, Code Compiler has no way to identify your provider as valid.
+**Required fields:**
+- `name`: Display name of your provider
+- `github`: GitHub username of maintainer
+- `email`: Contact email
+- `codeGen`: `"site"` (codes are predefined in JSON) or `"random"` (Code Compiler generates random codes)
+- `codes`: Array of code mappings (only if codeGen: "site")
 
-### 2. Routing Handler
-Your server must handle requests with `?code=` parameter and return HTML content.
+**codes array format:**
+```json
+{
+  "code": "snk1",           # 4-character code
+  "name": "Snake Game",     # Display name
+  "file": "games/snake.html" # Path to static HTML file
+}
+```
 
-## Example: Simple Node.js Server
+**What codeGen means:**
+- `"site"` → Codes listed in codifly.json (like snk1, gm48, pong)
+- `"random"` → Code Compiler generates random 4-char codes for users
+- `"user"` → Users can create their own codes
 
-```javascript
-// server.js
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+Without this file, Code Compiler cannot recognize your provider.
 
-const games = {
-  'snk1': '<html><body><h1>Game 1</h1><p>This is game 1</p></body></html>',
-  'gm02': '<html><body><h1>Game 2</h1><p>This is game 2</p></body></html>',
-  'test': fs.readFileSync('./games/test.html', 'utf8')
-  '2048': fs.readFileSync('./games/2048.html', 'utf8'),
-  'test123': fs.readFileSync('./games/test.html', 'utf8')
-};
+### 2. Static HTML Files
+Your provider must have HTML files for each code defined in codifly.json:
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  
-  // Handle codifly.json
+```
+example-provider/
+├── codifly.json
+└── games/
+    ├── snake.html    (code: snk1)
+    ├── 2048.html     (code: gm48)
+    └── pong.html     (code: pong)
+```
+
+Each HTML file should be **complete and self-contained** with inline CSS and JavaScript.
+
+## Example: Static Provider Structure
+
+Create these files:
   if (url.pathname === '/codifly.json') {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');

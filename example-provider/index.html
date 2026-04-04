@@ -42,9 +42,14 @@
 
         <div class="info-section">
             <h2>📋 About This Provider</h2>
-            <p>This is an example provider demonstrating how to create a provider site for Code Compiler. It hosts games and content that can be loaded dynamically.</p>
-            <p><strong>Provider Type:</strong> HTTP Server (Node.js or Python)</p>
-            <p><strong>Status:</strong> ✓ Online and running</p>
+            <p>This is a <strong>STATIC provider</strong> - no servers needed! Just HTML files and a codifly.json metadata file.</p>
+            <p><strong>How It Works:</strong></p>
+            <ul style="margin-left: 20px; color: #ccc;">
+                <li>codifly.json defines the available codes (snk1, gm48, pong)</li>
+                <li>Each code maps to a static HTML file</li>
+                <li>Code Compiler loads the HTML and caches it</li>
+                <li>Provider is served as-is (no server processing needed)</li>
+            </ul>
         </div>
 
         <div class="warning">
@@ -59,39 +64,54 @@
         <h2 style="color: #0f0; margin-bottom: 20px;">🎮 Available Games (4-Char Codes)</h2>
         <div class="games-grid" id="gamesGrid"></div>
 
+        <div class="info-section" style="border-left-color: #0080ff;">
+            <h2>💾 Cache & Assets Information</h2>
+            <p><strong>What gets cached?</strong> Complete game HTML with inline CSS and JavaScript</p>
+            <p><strong>Per Game:</strong></p>
+            <pre>snk1:  Complete Snake game (HTML, JavaScript, CSS)
+2048:  Complete 2048 game (HTML, JavaScript, CSS)
+pong:  Complete Pong game (HTML, JavaScript, CSS)</pre>
+            <p><strong>Storage:</strong> Code Compiler automatically caches each game's HTML response</p>
+            <p><strong>Benefit:</strong> Games load instantly on subsequent visits, even offline</p>
+        </div>
+
         <div class="info-section">
             <h2>🚀 How to Use This Provider</h2>
             <p><strong>Step 1:</strong> Register this provider in Code Compiler console:</p>
-            <pre>/register-url add games http://localhost:3000/?code=</pre>
-            <p><strong>Step 2:</strong> Load a game using a 4-character code:</p>
+            <pre>/register-url add games http://localhost:3000/</pre>
+            <p><strong>Step 2:</strong> Load a game using one of the defined 4-character codes:</p>
             <pre>/load-code snk1
-/load-code 2048
+/load-code gm48
 /load-code pong</pre>
             <p><strong>Step 3:</strong> See provider info:</p>
             <pre>/reg-url list</pre>
         </div>
 
         <div class="info-section">
-            <h2>📁 Provider Structure</h2>
+            <h2>📁 Provider Structure (STATIC)</h2>
             <pre>example-provider/
-├── codifly.json          # MANDATORY metadata (required!)
+├── codifly.json          # MANDATORY - defines codes & cache
 ├── index.html            # This page
-├── server.js             # Node.js implementation
-├── server.py             # Python implementation
-└── games/                # (Optional) Game files</pre>
+└── games/                # Static HTML game files
+    ├── snake.html        # Code: snk1
+    ├── 2048.html         # Code: gm48
+    └── pong.html         # Code: pong</pre>
         </div>
 
         <div class="info-section">
-            <h2>💡 Starting a Server</h2>
-            <p><strong>Node.js:</strong></p>
-            <pre>cd example-provider
-node server.js</pre>
-            <p><strong>Python:</strong></p>
-            <pre>cd example-provider
-python3 server.py</pre>
-            <p><strong>Static (Python):</strong></p>
+            <h2>💡 Serving This Static Provider</h2>
+            <p>Use ANY static file server:</p>
+            <p><strong>Python (Built-in):</strong></p>
             <pre>cd example-provider
 python3 -m http.server 3000</pre>
+            <p><strong>Node.js (http-server):</strong></p>
+            <pre>cd example-provider
+npx http-server -p 3000</pre>
+            <p><strong>VS Code (Live Server):</strong></p>
+            <pre>Right-click index.html → Open with Live Server</pre>
+            <p style="color: #8f8; font-size: 12px; margin-top: 15px;">
+              ✓ No server code needed - just serve the files!
+            </p>
         </div>
 
         <div class="metadata">
@@ -99,7 +119,18 @@ python3 -m http.server 3000</pre>
             <p>✓ Name: Example Game Hub</p>
             <p>✓ GitHub: your-github-username</p>
             <p>✓ Email: your-email@example.com</p>
-            <p>✓ Code Generation: Random</p>
+            <p>✓ Code Generation: <strong>site</strong></p>
+            <p style="font-size: 11px; color: #888; margin-top: 8px;">
+              (Codes defined in codifly.json, not generated randomly)
+            </p>
+            <p style="margin-top: 15px; border-top: 1px solid #444; padding-top: 15px;">
+              <strong>Cache Configuration:</strong>
+            </p>
+            <p>Type: <code>html</code></p>
+            <p>What gets cached: Game HTML (inline JavaScript and CSS)</p>
+            <p style="margin-top: 10px; font-size: 11px; color: #888;">
+              Code Compiler uses codifly.json to know what to cache for each code.
+            </p>
         </div>
 
         <div class="info-section">
@@ -112,7 +143,7 @@ DEPLOYMENT.md  - Cloud hosting options</pre>
     </div>
 
     <script>
-        // Games available in this provider (all 4-character codes)
+        // Games available in this provider (all 4-character codes defined in codifly.json)
         const games = [
             {
                 name: 'Snake',
@@ -122,7 +153,7 @@ DEPLOYMENT.md  - Cloud hosting options</pre>
             },
             {
                 name: '2048',
-                code: '2048',
+                code: 'gm48',
                 desc: 'Slide and merge tiles to reach 2048.',
                 emoji: '🔲'
             },

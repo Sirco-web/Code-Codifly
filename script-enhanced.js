@@ -110,6 +110,9 @@ class CodeCompiler {
             case '/reg-url':
                 this.handleRegisterUrl(parts);
                 break;
+            case '/update-url':
+                this.handleUpdateUrl(parts);
+                break;
             case '/load-code':
                 this.handleLoadCode(parts);
                 break;
@@ -135,9 +138,13 @@ class CodeCompiler {
         this.addLog('/help - Show this help', 'log');
         this.addLog('/register-url add <name> <url> - Register provider', 'log');
         this.addLog('/register-url remove <name> - Remove provider', 'log');
+        this.addLog('/update-url <provider|all> <url> - Update provider URL', 'log');
         this.addLog('/load-code <4-char-code> - Load site by code', 'log');
         this.addLog('/list-providers - Show all providers', 'log');
         this.addLog('/cache-info - Show cache info', 'log');
+        this.addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+        this.addLog('Loading codes replaces browser history with google.com', 'warn');
+        this.addLog('Configure via codifly.json historyReplace property', 'warn');
         this.addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
     }
 
@@ -170,6 +177,95 @@ class CodeCompiler {
             }
         } else if (action === 'list') {
             this.listProviders();
+        }
+    }
+
+    async handleUpdateUrl(parts) {
+        const name = parts[1];
+        const newUrl = parts.slice(2).join(' ');
+
+        if (!name || !newUrl) {
+            this.addLog('Usage: /update-url <provider-name|all> <new-url>', 'warn');
+            return;
+        }
+
+        const providers = this.providers.lst();
+
+        if (name.toLowerCase() === 'all') {
+            // Update all providers
+            const providerNames = Object.keys(providers);
+            if (providerNames.length === 0) {
+                this.addLog('✗ No providers registered', 'warn');
+                return;
+            }
+
+            this.addLog(`Updating ${providerNames.length} provider(s)...`, 'info');
+            for (const providerName of providerNames) {
+                const provider = providers[providerName];
+                provider.url = newUrl;
+                
+                // Re-fetch metadata from new URL
+                try {
+                    const fetchUrl = newUrl.endsWith('/') ? newUrl : newUrl + '/';
+                    const response = await fetch(fetchUrl + 'codifly.json', {
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        provider.metadata = data;
+                        provider.codeLookup = {};
+                        
+                        if (data.codes && Array.isArray(data.codes)) {
+                            data.codes.forEach(codeObj => {
+                                provider.codeLookup[codeObj.code] = codeObj;
+                            });
+                        }
+                        this.addLog(`✓ Updated "${providerName}"`, 'success');
+                    }
+                } catch (e) {
+                    this.addLog(`⚠ Could not fetch codifly.json for "${providerName}"`, 'warn');
+                }
+            }
+        } else {
+            // Update single provider
+            if (!providers[name]) {
+                this.addLog(`✗ Provider "${name}" not found`, 'error');
+                return;
+            }
+
+            const provider = providers[name];
+            provider.url = newUrl;
+            this.addLog(`Updating "${name}" URL to ${newUrl}...`, 'info');
+
+            try {
+                const fetchUrl = newUrl.endsWith('/') ? newUrl : newUrl + '/';
+                const response = await fetch(fetchUrl + 'codifly.json', {
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    provider.metadata = data;
+                    provider.codeLookup = {};
+                    
+                    if (data.codes && Array.isArray(data.codes)) {
+                        data.codes.forEach(codeObj => {
+                            provider.codeLookup[codeObj.code] = codeObj;
+                        });
+                    }
+                    this.addLog(`✓ Provider "${name}" updated`, 'success');
+                    if (data.name) {
+                        this.addLog(`  ${data.name}`, 'log');
+                    }
+                } else {
+                    this.addLog(`✓ URL updated (codifly.json not found)`, 'warn');
+                }
+            } catch (error) {
+                this.addLog(`✓ URL updated (could not fetch metadata: ${error.message})`, 'warn');
+            }
         }
     }
 
@@ -240,7 +336,7 @@ class CodeCompiler {
             const codeObj = provider.codeLookup[code];
             const providerUrl = typeof provider === 'string' ? provider : provider.url;
             const fileUrl = providerUrl.endsWith('/') ? providerUrl : providerUrl + '/';
-            this.loadSiteFromUrl(`${fileUrl}${codeObj.file}`, code);
+            this.loadSiteFromUrl(`${fileUrl}${codeObj.file}`, code, provider);
         } else {
             this.addLog(`✗ Code "${code}" not found in provider`, 'error');
         }
@@ -269,13 +365,13 @@ class CodeCompiler {
             const codeObj = p.codeLookup[code];
             const providerUrl = typeof p === 'string' ? p : p.url;
             const fileUrl = providerUrl.endsWith('/') ? providerUrl : providerUrl + '/';
-            this.loadSiteFromUrl(`${fileUrl}${codeObj.file}`, code);
+            this.loadSiteFromUrl(`${fileUrl}${codeObj.file}`, code, p);
         } else {
             this.addLog(`✗ Code "${code}" not found in provider`, 'error');
         }
     }
 
-    async loadSiteFromUrl(url, code) {
+    async loadSiteFromUrl(url, code, providerMetadata = null) {
         try {
             this.addLog(`Loading from ${url}...`, 'info');
             const response = await fetch(url, {
@@ -290,6 +386,17 @@ class CodeCompiler {
             const html = await response.text();
             await this.cacheSite(`site-${code}`, html);
             this.addLog('✓ Site loaded and cached', 'success');
+            
+            // Handle history replacement based on metadata
+            const historyConfig = providerMetadata?.metadata?.historyReplace || {};
+            const historyUrl = historyConfig.url || 'https://www.google.com';
+            const doHistoryReplace = historyConfig.enabled !== false; // enabled by default
+            
+            if (doHistoryReplace) {
+                history.replaceState({ originalUrl: window.location.href, code }, '', historyUrl);
+                this.addLog(`History replaced with: ${historyUrl}`, 'info');
+            }
+            
             this.displaySite(html);
         } catch (error) {
             this.addLog(`✗ Error: ${error.message}`, 'error');

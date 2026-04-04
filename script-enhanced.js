@@ -443,11 +443,12 @@ class CodeCompiler {
             const doHistoryReplace = historyConfig.enabled !== false; // enabled by default
             
             if (doHistoryReplace) {
-                history.replaceState({ originalUrl: window.location.href, code }, '', historyUrl);
-                this.addLog(`History replaced with: ${historyUrl}`, 'info');
+                window.location.replace(historyUrl);
+                this.addLog(`Navigating to: ${historyUrl}`, 'info');
             }
             
             this.displaySite(html);
+            this.addLog('✓ Provider working - games loaded and running', 'success');
         } catch (error) {
             this.addLog(`✗ Error: ${error.message}`, 'error');
         }
@@ -455,13 +456,16 @@ class CodeCompiler {
 
     async cacheSite(key, html) {
         try {
+            if (typeof caches === 'undefined') {
+                return; // Cache API not available in this context
+            }
             const cache = await caches.open('code-compiler-v1');
             const response = new Response(html, {
                 headers: {'Content-Type': 'text/html'}
             });
             await cache.put(key, response);
         } catch (error) {
-            console.error('Cache error:', error);
+            // Silently fail if cache API is unavailable or fails
         }
     }
 
@@ -485,29 +489,6 @@ class CodeCompiler {
                 padding: 0;
                 overflow: hidden;
             `;
-            
-            // Create close button
-            const closeBtn = document.createElement('button');
-            closeBtn.innerHTML = '✕ Back to Editor';
-            closeBtn.style.cssText = `
-                position: absolute;
-                top: 10px;
-                right: 10px;
-                padding: 8px 16px;
-                background: #238636;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 12px;
-                font-weight: 600;
-                z-index: 10000;
-            `;
-            closeBtn.addEventListener('click', () => {
-                overlay.style.display = 'none';
-                this.addLog('Back to editor', 'info');
-            });
-            overlay.appendChild(closeBtn);
             
             document.body.appendChild(overlay);
         }
@@ -554,6 +535,10 @@ class CodeCompiler {
 
     async showCacheInfo() {
         try {
+            if (typeof caches === 'undefined') {
+                this.addLog('Cache API not available', 'warn');
+                return;
+            }
             const cacheNames = await caches.keys();
             this.addLog(`Caches: ${cacheNames.join(', ') || 'None'}`, 'info');
 

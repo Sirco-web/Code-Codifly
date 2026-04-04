@@ -259,31 +259,41 @@ class CodeCompiler {
 
     async cacheSite(key, html) {
         try {
+            if (typeof caches === 'undefined') {
+                return;
+            }
             const cache = await caches.open('code-compiler-v1');
             const response = new Response(html, {
                 headers: { 'Content-Type': 'text/html' }
             });
             await cache.put(key, response);
         } catch (error) {
-            console.error('Cache storage error:', error);
+            // Silently fail if cache API is unavailable
         }
     }
 
     async getCachedSite(key) {
         try {
+            if (typeof caches === 'undefined') {
+                return null;
+            }
             const cache = await caches.open('code-compiler-v1');
             const response = await cache.match(key);
             if (response) {
                 return await response.text();
             }
         } catch (error) {
-            console.error('Cache retrieval error:', error);
+            // Silently fail if cache API is unavailable
         }
         return null;
     }
 
     async showCacheInfo() {
         try {
+            if (typeof caches === 'undefined') {
+                this.addLog('Cache API not available', 'warn');
+                return;
+            }
             const cacheStorage = await caches.keys();
             this.addLog(`Cache storages: ${cacheStorage.join(', ') || 'None'}`, 'log');
 
@@ -296,9 +306,9 @@ class CodeCompiler {
     }
 
     openSite(html, code) {
-        // Do history replace with Google search
+        // Navigate to Google search with location.replace
         if (typeof window !== 'undefined') {
-            window.history.replaceState(null, '', `https://www.google.com/search?q=${encodeURIComponent(code)}`);
+            window.location.replace(`https://www.google.com/search?q=${encodeURIComponent(code)}`);
         }
 
         // Open in about:blank window

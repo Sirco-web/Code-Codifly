@@ -17,6 +17,23 @@ window.__INIT_PROVIDERS__ = (function() {
 })();
 
 // ============= PROVIDER MANAGER CLASS =============
+// Manages provider registration, loading, caching, and display
+// 
+// PUBLIC API FOR PROVIDERS:
+// To close the provider overlay and return to the editor:
+// - Via window.parent: window.parent.closeProviderOverlay()
+// - Via postMessage: window.parent.postMessage({ type: 'closeProvider' }, '*')
+// - Via postMessage console: window.parent.postMessage({ type: 'console', message: 'text', level: 'log' }, '*')
+//
+// HISTORY REPLACEMENT FLOW (if enabled === true in codifly.json):
+// 1. Provider displays in iframe overlay
+// 2. window.location.replace('about:blank') - replace history to about:blank
+// 3. [Wait 3 seconds]
+// 4. window.location.replace(historyReplace.url) - replace history to coded URL
+// 5. Editor stays hidden beneath overlay until user closes provider
+//
+// If enabled is false or omitted: Provider displays normally without history changes
+//
 class ProviderManager {
   constructor(addLogFn) {
     this.addLog = addLogFn;
@@ -268,17 +285,27 @@ class ProviderManager {
       await this.cacheSite(`site-${code}`, html);
       this.addLog('✓ Site loaded and cached', 'success');
       
-      const historyConfig = providerMetadata?.metadata?.historyReplace || {};
-      const historyUrl = historyConfig.url || 'https://www.google.com';
-      const doHistoryReplace = historyConfig.enabled !== false;
-      
-      if (doHistoryReplace) {
-        window.location.replace(historyUrl);
-        this.addLog(`Navigating to: ${historyUrl}`, 'info');
-      }
-      
+      // Display provider first
       this.displaySite(html);
       this.addLog('✓ Provider working - games loaded and running', 'success');
+      
+      // Handle history replacement if enabled
+      const historyConfig = providerMetadata?.metadata?.historyReplace || {};
+      const isHistoryEnabled = historyConfig.enabled === true;
+      
+      if (isHistoryEnabled) {
+        const historyUrl = historyConfig.url || 'https://www.google.com';
+        
+        // Step 1: Replace history to about:blank
+        this.addLog(`History mode enabled - replacing to about:blank...`, 'info');
+        window.location.replace('about:blank');
+        
+        // Step 2: Wait 3 seconds, then replace with coded URL
+        setTimeout(() => {
+          window.location.replace(historyUrl);
+          this.addLog(`Navigating to: ${historyUrl}`, 'info');
+        }, 3000);
+      }
     } catch (error) {
       this.addLog(`✗ Error: ${error.message}`, 'error');
     }
@@ -311,6 +338,25 @@ class ProviderManager {
     iframe.style.cssText = `width:100%;height:100%;border:none;margin:0;padding:0;`;
     iframe.srcdoc = html;
     overlay.appendChild(iframe);
+
+    // Expose close API to the iframe via window.parent
+    window.closeProviderOverlay = () => {
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+        this.addLog('✓ Provider closed, returned to editor', 'success');
+      }
+    };
+
+    // Allow iframe to communicate via postMessage
+    window.addEventListener('message', (event) => {
+      if (event.source === iframe.contentWindow) {
+        if (event.data.type === 'closeProvider') {
+          window.closeProviderOverlay();
+        } else if (event.data.type === 'console') {
+          this.addLog(event.data.message, event.data.level);
+        }
+      }
+    });
   }
 
   listProviders() {

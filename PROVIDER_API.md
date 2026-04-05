@@ -1,35 +1,57 @@
 # Provider API Documentation
 
 ## Overview
-Providers can now interact with the Code Compiler Pro editor using a simple API exposed via `window.parent`.
+Providers are loaded into **new browser windows/tabs** automatically when you use `/load-code`. The original Code Compiler editor stays open in its own tab. The new window displays in about:blank mode for security reasons.
+
+---
+
+## How Providers Load
+
+When you execute `/load-code CODE` in the editor:
+
+1. **Fetch** provider files and metadata from your codifly.json
+2. **Open new window**: `window.open('about:blank', '_blank')`
+3. **Write HTML**: Provider HTML is written to the new window using `document.write()`
+4. **Replace URL** (if enabled): `history.replaceState()` changes the address bar to your configured URL
+5. **Editor stays open**: Original Code Compiler tab remains accessible
+
+### Example Timeline
+```
+Editor: /load-code GAME
+   ↓
+Fetch game.html from provider
+   ↓
+window.open('about:blank', '_blank')
+   ↓
+newWindow.document.write(gameHtml)
+   ↓
+IF enabled: newWindow.history.replaceState({}, '', 'https://google.com')
+   ↓
+New window shows: Your game with address bar showing 'https://google.com'
+   ↓
+Editor tab still open - user can switch between tabs
+```
 
 ---
 
 ## API Methods
 
-### 1. Close Provider and Return to Editor
-**Method:** `window.parent.closeProviderOverlay()`
+### Close Provider (Normal Window Close)
+Simply **close the window** using the browser's X button or press `Alt+F4`. The editor remains open.
 
-Close the provider overlay and return focus to the editor.
-
+To close programmatically from your provider HTML:
 ```javascript
-// Direct function call
-window.parent.closeProviderOverlay();
-
-// Alternative: via postMessage
-window.parent.postMessage({ type: 'closeProvider' }, '*');
+// Close the window
+window.close();
 ```
 
-**Example: Close button in provider**
-```html
-<button onclick="window.parent.closeProviderOverlay()">Close & Back to Editor</button>
-```
+**Note:** Providers run in isolated windows, so there's no need for parent window communication.
 
 ---
 
-## Configuration: History Replacement
+## Configuration: codifly.json
 
-In your `codifly.json`, configure history replacement behavior:
+Your `codifly.json` defines your provider metadata and available games/apps:
 
 ```json
 {
@@ -41,88 +63,77 @@ In your `codifly.json`, configure history replacement behavior:
       "code": "GAME",
       "name": "Game Title",
       "file": "game.html"
+    },
+    {
+      "code": "ABC1",
+      "name": "Another Game",
+      "file": "another.html"
     }
-  ],
-  "historyReplace": {
-    "enabled": true,
-    "url": "https://www.google.com"
-  }
+  ]
 }
 ```
 
-**Important:** Set `"enabled": true` to activate history replacement. If `enabled` is `false` or omitted, the provider displays normally without any history changes.
-
-### History Replacement Flow
-When `historyReplace.enabled` is `true`:
-
-1. **T=0s**: Provider overlay displays in iframe
-2. **T=0s**: `window.location.replace('about:blank')` executes
-3. **T=0-3s**: User sees provider content in iframe overlay
-4. **T=3s**: `window.location.replace(historyUrl)` executes to configured URL
-5. Browser history entry is now the coded URL
-6. User can close provider to return to editor
-
-### Timeline Example
-```
-[Editor] /load-code GAME
-    ↓
-Fetch game.html + metadata from provider
-    ↓
-Display provider in iframe overlay
-    ↓
-Check if historyReplace.enabled === true
-    ↓ YES
-Set window.location.replace('about:blank')
-    ↓
-[Wait 3 seconds - user sees provider playing]
-    ↓
-Execute window.location.replace('https://www.google.com')
-    ↓
-[User can now press "back" to return to editor]
-```
-
-### No History Replacement
-If `historyReplace.enabled` is `false` or omitted:
-
-```json
-"historyReplace": {
-  "enabled": false,
-  "url": "https://www.google.com"
-}
-```
-
-or simply omit it:
-
-```json
-// historyReplace section not present
-```
-
-**Result:** Provider displays normally, history is NOT modified. User cannot press "back" to leave (must use close button).
+**Fields:**
+- `name` (required): Display name of your provider
+- `email` (required): Contact email
+- `github` (required): Link to GitHub repository
+- `codes` (required): Array of code objects:
+  - `code` (required): Exactly 4 alphanumeric characters (used with `/load-code CODE`)
+  - `name` (required): Display name/title of the game
+  - `file` (required): Relative path to HTML file
 
 ---
 
+## Cache Management
+
+### Initial Caching (Registration)
+When you register a provider with `/register-url add <name> <url>`:
+1. Fetches `codifly.json` from your provider
+2. **Caches each file** specified in the `codes` array  
+3. **Saves provider metadata** to localStorage (persists after page refresh)
+4. Files are stored in the browser's Cache API for instant access
+
+### Updating Cache
+When you run `/update-cache`:
+1. **Fetches latest `codifly.json`** from all registered providers
+2. **Deletes old cached files** that are no longer in the provider
+3. **Downloads and caches new/updated files** from the provider
+4. **Saves updated metadata** to localStorage
+5. After page refresh, the **new updated cache is used** - not the old one
+
+**Key:** `/update-cache` ensures that when you refresh the page (`F5`), you get the latest version of your files, not stale cache.
+
+### Example Workflow
+```
+1. /register-url add mygames https://example.com/games
+   └─ Caches: game1.html, game2.html (v1)
+   └─ Saves metadata to localStorage
+
+2. [You update game1.html on your server to v2]
+
+3. /update-cache
+   └─ Fetches codifly.json again
+   └─ Detects game1.html updated
+   └─ Deletes old cached game1.html (v1)
+   └─ Caches new game1.html (v2)
+   └─ Saves updated metadata to localStorage
+
+4. /load-code GAME (or page refresh)
+   └─ Loads game1.html (v2) from updated cache
+   └─ NOT v1 anymore
+```
+
+
+
 ## Console Communication
 
-Send console messages from provider to editor console:
+Since providers run in **isolated windows**, there is no direct communication with the editor console. However, you can display logs within your provider using:
 
 ```javascript
-window.parent.postMessage({
-  type: 'console',
-  message: 'Custom message',
-  level: 'log'    // 'log', 'info', 'warn', 'error', 'success'
-}, '*');
+console.log('Your message here');
 ```
 
-**Example:**
-```javascript
-function onGameStart() {
-  window.parent.postMessage({
-    type: 'console',
-    message: 'Game started!',
-    level: 'info'
-  }, '*');
-}
-```
+This will appear in the provider window's console (F12), not the editor's console.
 
 ---
 
@@ -160,23 +171,15 @@ function onGameStart() {
 
   <script>
     function closeGame() {
-      // Notify editor we're closing
-      window.parent.postMessage({
-        type: 'console',
-        message: 'Game closed by user',
-        level: 'info'
-      }, '*');
+      // Log before closing
+      console.log('Game closed by user');
       
-      // Close the overlay
-      window.parent.closeProviderOverlay();
+      // Close the window
+      window.close();
     }
 
     // On load
-    window.parent.postMessage({
-      type: 'console',
-      message: 'Provider loaded successfully!',
-      level: 'success'
-    }, '*');
+    console.log('Provider loaded successfully!');
   </script>
 </body>
 </html>
@@ -202,11 +205,7 @@ function onGameStart() {
       "name": "Second Game/App",
       "file": "game2.html"
     }
-  ],
-  "historyReplace": {
-    "enabled": false,
-    "url": "https://www.google.com"
-  }
+  ]
 }
 ```
 
@@ -214,10 +213,6 @@ function onGameStart() {
 - `code` (required): Exactly 4 alphanumeric characters, used to load via `/load-code ABC1`
 - `name` (required): Display name shown in provider list
 - `file` (required): Relative path to HTML file
-- `historyReplace.enabled` (boolean): Set to `true` to enable history replacement (default: `false`)
-  - When `true`: At T=3s, history is replaced to the configured URL
-  - When `false` or omitted: No history modifications, provider displays normally
-- `historyReplace.url`: URL to replace history with after 3 seconds (typically a redirect/cover URL like Google)
 
 ---
 
@@ -232,17 +227,19 @@ function onGameStart() {
 
 ## Troubleshooting
 
-**Q: Close button not working?**
-- Ensure you're calling `window.parent.closeProviderOverlay()` from within the iframe
-- Check browser console for errors
-
-**Q: History not replacing?**
-- Verify `historyReplace.enabled` is `true` in codifly.json
-- Check that `historyReplace.url` is a valid HTTPS URL
-- Some browsers may block certain domains
+**Q: New window not opening?**
+- Check if your browser is blocking popups from this site
+- Allow popups from Code Compiler in your browser settings
+- Try disabling popup blockers or add-ons
 
 **Q: Can't see provider content?**
 - Check that the HTML file path in `codifly.json` is correct
-- Verify codifly.json is being fetched (check Network tab)
-- Check editor console for error messages
+- Verify codifly.json is being fetched (check Network tab in F12)
+- Check browser console for error messages
+- Ensure HTML file is valid and accessible via CORS
+
+**Q: How do I go back to the editor?**
+- Click the X button on the provider window to close it
+- Or use Alt+Tab to switch to the Code Compiler tab
+- The editor stays open in its original tab
 

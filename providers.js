@@ -19,20 +19,12 @@ window.__INIT_PROVIDERS__ = (function() {
 // ============= PROVIDER MANAGER CLASS =============
 // Manages provider registration, loading, caching, and display
 // 
-// PUBLIC API FOR PROVIDERS:
-// To close the provider overlay and return to the editor:
-// - Via window.parent: window.parent.closeProviderOverlay()
-// - Via postMessage: window.parent.postMessage({ type: 'closeProvider' }, '*')
-// - Via postMessage console: window.parent.postMessage({ type: 'console', message: 'text', level: 'log' }, '*')
-//
-// HISTORY REPLACEMENT FLOW (if enabled === true in codifly.json):
-// 1. Provider displays in iframe overlay
-// 2. window.location.replace('about:blank') - replace history to about:blank
-// 3. [Wait 3 seconds]
-// 4. window.location.replace(historyReplace.url) - replace history to coded URL
-// 5. Editor stays hidden beneath overlay until user closes provider
-//
-// If enabled is false or omitted: Provider displays normally without history changes
+// PROVIDER WINDOW FLOW:
+// 1. Open new window with window.open('about:blank', '_blank')
+// 2. Write provider HTML content into new window: document.write(html)
+// 3. Provider runs in isolated window context
+// 4. Editor remains open in original tab/window
+// 5. User can switch between windows or close provider window to return
 //
 class ProviderManager {
   constructor(addLogFn) {
@@ -121,11 +113,23 @@ class ProviderManager {
         const data = await response.json();
         provider.metadata = data;
         provider.codeLookup = {};
+        const oldCodes = provider.oldCodes || [];
 
         if (data.codes && Array.isArray(data.codes)) {
           data.codes.forEach(codeObj => {
             provider.codeLookup[codeObj.code] = codeObj;
           });
+          
+          // Clear old cache entries for codes no longer in the provider
+          for (const oldCode of oldCodes) {
+            if (!data.codes.find(c => c.code === oldCode)) {
+              await this.clearCacheEntry(`site-${oldCode}`);
+              this.addLog(`  Removed old cache for ${oldCode}`, 'log');
+            }
+          }
+          
+          // Store current codes for next update
+          provider.oldCodes = data.codes.map(c => c.code);
           
           this.addLog(`  Caching ${data.codes.length} file(s)...`, 'log');
           for (const codeObj of data.codes) {
@@ -150,7 +154,9 @@ class ProviderManager {
           }
         }
 
-        this.addLog(`✓ Provider "${providerName}" updated and cached`, 'success');
+        // Save updated provider to localStorage so it persists after page refresh
+        this.providers.add(providerName, provider);
+        this.addLog(`✓ Provider "${providerName}" updated and saved locally`, 'success');
         if (data.name) {
           this.addLog(`  ${data.name}`, 'log');
         }
@@ -196,6 +202,9 @@ class ProviderManager {
           metadata.codeLookup = {};
           
           if (data.codes && Array.isArray(data.codes)) {
+            // Track codes for future cache invalidation
+            metadata.oldCodes = data.codes.map(c => c.code);
+            
             data.codes.forEach(codeObj => {
               metadata.codeLookup[codeObj.code] = codeObj;
             });
@@ -285,26 +294,19 @@ class ProviderManager {
       await this.cacheSite(`site-${code}`, html);
       this.addLog('✓ Site loaded and cached', 'success');
       
-      // Display provider first
-      this.displaySite(html);
-      this.addLog('✓ Provider working - games loaded and running', 'success');
+      // Open new window with about:blank
+      const newWindow = window.open('about:blank', '_blank');
       
-      // Handle history replacement if enabled
-      const historyConfig = providerMetadata?.metadata?.historyReplace || {};
-      const isHistoryEnabled = historyConfig.enabled === true;
-      
-      if (isHistoryEnabled) {
-        const historyUrl = historyConfig.url || 'https://www.google.com';
+      if (newWindow) {
+        // Write provider HTML to the new window
+        newWindow.document.open();
+        newWindow.document.write(html);
+        newWindow.document.close();
         
-        // Step 1: Replace history to about:blank
-        this.addLog(`History mode enabled - replacing to about:blank...`, 'info');
-        window.location.replace('about:blank');
-        
-        // Step 2: Wait 3 seconds, then replace with coded URL
-        setTimeout(() => {
-          window.location.replace(historyUrl);
-          this.addLog(`Navigating to: ${historyUrl}`, 'info');
-        }, 3000);
+        this.addLog('✓ Opened provider in new window', 'success');
+        this.addLog('✓ Provider working - games loaded and running', 'success');
+      } else {
+        this.addLog('✗ Failed to open new window (may be blocked by popup blocker)', 'error');
       }
     } catch (error) {
       this.addLog(`✗ Error: ${error.message}`, 'error');
@@ -410,6 +412,18 @@ class ProviderManager {
         headers: { 'Content-Type': 'text/html' }
       });
       await cache.put(key, response);
+    } catch (error) {
+      // Silently fail if cache API is unavailable
+    }
+  }
+
+  async clearCacheEntry(key) {
+    try {
+      if (typeof caches === 'undefined') {
+        return;
+      }
+      const cache = await caches.open('code-compiler-v1');
+      await cache.delete(key);
     } catch (error) {
       // Silently fail if cache API is unavailable
     }

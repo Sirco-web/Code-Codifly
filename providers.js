@@ -341,20 +341,10 @@ class ProviderManager {
     iframe.srcdoc = html;
     overlay.appendChild(iframe);
 
-    // Expose close API to the iframe via window.parent
-    window.closeProviderOverlay = () => {
-      if (overlay && overlay.parentNode) {
-        overlay.parentNode.removeChild(overlay);
-        this.addLog('✓ Provider closed, returned to editor', 'success');
-      }
-    };
-
     // Allow iframe to communicate via postMessage
     window.addEventListener('message', (event) => {
       if (event.source === iframe.contentWindow) {
-        if (event.data.type === 'closeProvider') {
-          window.closeProviderOverlay();
-        } else if (event.data.type === 'console') {
+        if (event.data.type === 'console') {
           this.addLog(event.data.message, event.data.level);
         }
       }

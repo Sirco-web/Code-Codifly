@@ -34,21 +34,6 @@ Editor tab still open - user can switch between tabs
 
 ---
 
-## API Methods
-
-### Close Provider (Normal Window Close)
-Simply **close the window** using the browser's X button or press `Alt+F4`. The editor remains open.
-
-To close programmatically from your provider HTML:
-```javascript
-// Close the window
-window.close();
-```
-
-**Note:** Providers run in isolated windows, so there's no need for parent window communication.
-
----
-
 ## Configuration: codifly.json
 
 Your `codifly.json` defines your provider metadata and available games/apps:

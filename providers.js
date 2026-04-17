@@ -209,6 +209,7 @@ class ProviderManager {
               metadata.codeLookup[codeObj.code] = codeObj;
             });
             
+            this.addLog(`  Caching ${data.codes.length} file(s)...`, 'log');
             for (const codeObj of data.codes) {
               if (codeObj.file) {
                 try {
@@ -222,9 +223,10 @@ class ProviderManager {
                     const fileContent = await fileResponse.text();
                     const cacheKey = `site-${codeObj.code}`;
                     await this.cacheSite(cacheKey, fileContent);
+                    this.addLog(`    ✓ Cached "${codeObj.name}" (${codeObj.code})`, 'success');
                   }
                 } catch (e) {
-                  // Silently skip
+                  this.addLog(`    ✗ Failed to cache "${codeObj.name}" (${codeObj.code})`, 'warn');
                 }
               }
             }
